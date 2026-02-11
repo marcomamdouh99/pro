@@ -131,6 +131,13 @@ export default function CostManagement() {
     fetchBranches();
   }, []);
 
+  // Set default branch filter based on user role
+  useEffect(() => {
+    if (currentUser?.role === 'BRANCH_MANAGER' && currentUser.branchId) {
+      setSelectedBranch(currentUser.branchId);
+    }
+  }, [currentUser]);
+
   // Fetch cost categories
   useEffect(() => {
     const fetchCostCategories = async () => {
@@ -431,22 +438,30 @@ export default function CostManagement() {
                   <div className="space-y-4 py-4">
                     <div className="space-y-2">
                       <Label htmlFor="branch">Branch *</Label>
-                      <Select
-                        value={formData.branchId}
-                        onValueChange={(value) => setFormData({ ...formData, branchId: value })}
-                        disabled={currentUser?.role === 'BRANCH_MANAGER'}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select branch" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {branches.map((branch) => (
-                            <SelectItem key={branch.id} value={branch.id}>
-                              {branch.branchName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {currentUser?.role === 'BRANCH_MANAGER' ? (
+                        <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-md">
+                          <Building2 className="h-4 w-4 text-slate-500" />
+                          <span className="font-medium">
+                            {branches.find(b => b.id === currentUser.branchId)?.branchName || 'Your Branch'}
+                          </span>
+                        </div>
+                      ) : (
+                        <Select
+                          value={formData.branchId}
+                          onValueChange={(value) => setFormData({ ...formData, branchId: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select branch" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {branches.map((branch) => (
+                              <SelectItem key={branch.id} value={branch.id}>
+                                {branch.branchName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     </div>
 
                     <div className="space-y-2">
@@ -541,21 +556,23 @@ export default function CostManagement() {
         <CardContent>
           {/* Filters */}
           <div className="flex flex-col md:flex-row gap-4 mb-6">
-            <div className="flex-1">
-              <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Branches" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Branches</SelectItem>
-                  {branches.map((branch) => (
-                    <SelectItem key={branch.id} value={branch.id}>
-                      {branch.branchName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {currentUser?.role !== 'BRANCH_MANAGER' && (
+              <div className="flex-1">
+                <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Branches" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Branches</SelectItem>
+                    {branches.map((branch) => (
+                      <SelectItem key={branch.id} value={branch.id}>
+                        {branch.branchName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="flex-1">
               <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
                 <SelectTrigger>

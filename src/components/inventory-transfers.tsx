@@ -307,14 +307,6 @@ export default function InventoryTransfers() {
     return false;
   };
 
-  const filteredBranches = branches.filter(b => {
-    if (user?.role === 'BRANCH_MANAGER' && user.branchId) {
-      // For branch managers, only show their branch as source
-      return b.id === user.branchId;
-    }
-    return true;
-  });
-
   return (
     <div className="space-y-6">
       <Card className="bg-white/80 backdrop-blur-sm">
@@ -366,18 +358,32 @@ export default function InventoryTransfers() {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
                           <Label>Source Branch *</Label>
-                          <Select name="sourceBranchId" required disabled={user?.role === 'BRANCH_MANAGER'}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="From" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {filteredBranches.map(b => (
-                                <SelectItem key={b.id} value={b.id}>{b.branchName}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          {user?.role === 'BRANCH_MANAGER' && (
-                            <p className="text-xs text-slate-500">You can only transfer from your branch</p>
+                          {user?.role === 'BRANCH_MANAGER' ? (
+                            <>
+                              <input
+                                type="hidden"
+                                name="sourceBranchId"
+                                value={user.branchId}
+                              />
+                              <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-md">
+                                <Package className="h-4 w-4 text-slate-500" />
+                                <span className="font-medium">
+                                  {branches.find(b => b.id === user.branchId)?.branchName || 'Your Branch'}
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-500">You can only transfer from your branch</p>
+                            </>
+                          ) : (
+                            <Select name="sourceBranchId" required>
+                              <SelectTrigger>
+                                <SelectValue placeholder="From" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {branches.map(b => (
+                                  <SelectItem key={b.id} value={b.id}>{b.branchName}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           )}
                         </div>
                         <div className="grid gap-2">
@@ -387,9 +393,11 @@ export default function InventoryTransfers() {
                               <SelectValue placeholder="To" />
                             </SelectTrigger>
                             <SelectContent>
-                              {branches.map(b => (
-                                <SelectItem key={b.id} value={b.id}>{b.branchName}</SelectItem>
-                              ))}
+                              {branches
+                                .filter(b => b.id !== (user?.role === 'BRANCH_MANAGER' ? user.branchId : ''))
+                                .map(b => (
+                                  <SelectItem key={b.id} value={b.id}>{b.branchName}</SelectItem>
+                                ))}
                             </SelectContent>
                           </Select>
                         </div>
