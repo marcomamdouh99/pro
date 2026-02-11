@@ -1256,8 +1256,7 @@ export default function MenuManagement() {
                               <SelectValue placeholder="Optional: Select default variant type" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">None</SelectItem>
-                              {variantTypes.map((vt) => (
+                            {variantTypes.map((vt) => (
                                 <SelectItem key={vt.id} value={vt.id}>
                                   {vt.name} {vt.description && `(${vt.description})`}
                                 </SelectItem>
