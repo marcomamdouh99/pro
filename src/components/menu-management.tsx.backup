@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Pencil, Trash2, Coffee, DollarSign, Search, Folder, TrendingUp, Package, Layers, ChevronDown, ChevronUp, X, List } from 'lucide-react';
+import { Plus, Pencil, Trash2, Coffee, DollarSign, Search, Folder, TrendingUp, Package, Layers, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { useI18n } from '@/lib/i18n-context';
 import { formatCurrency } from '@/lib/utils';
 
@@ -1180,6 +1180,473 @@ export default function MenuManagement() {
 
 
             {/* Variants Tab */}
+            <TabsContent value="variants" className="space-y-4 mt-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-semibold">Variant Types & Options</h3>
+                  <p className="text-sm text-slate-500">
+                    Manage variant types (e.g., Size, Weight) and their options
+                  </p>
+                </div>
+                <Dialog open={variantTypeDialogOpen} onOpenChange={setVariantTypeDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button onClick={resetVariantTypeForm}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Type
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[500px]">
+                    <form onSubmit={handleVariantTypeSubmit}>
+                      <DialogHeader>
+                        <DialogTitle>{editingVariantType ? 'Edit Variant Type' : 'Add Variant Type'}</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="variantTypeName">Type Name *</Label>
+                          <Input
+                            id="variantTypeName"
+                            value={variantTypeFormData.name}
+                            onChange={(e) => setVariantTypeFormData({ ...variantTypeFormData, name: e.target.value })}
+                            placeholder="e.g., Size, Weight, Type"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="variantTypeDescription">Description</Label>
+                          <Input
+                            id="variantTypeDescription"
+                            value={variantTypeFormData.description}
+                            onChange={(e) => setVariantTypeFormData({ ...variantTypeFormData, description: e.target.value })}
+                            placeholder="Optional description"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="variantTypeStatus">Status</Label>
+                          <Select
+                            value={variantTypeFormData.isActive.toString()}
+                            onValueChange={(value) => setVariantTypeFormData({ ...variantTypeFormData, isActive: value === 'true' })}
+                          >
+                            <SelectTrigger id="variantTypeStatus">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="true">Active</SelectItem>
+                              <SelectItem value="false">Inactive</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setVariantTypeDialogOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button type="submit" disabled={loading}>
+                          {loading ? 'Saving...' : editingVariantType ? 'Update' : 'Add'} Type
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Left Column: Variant Types List */}
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="bg-slate-50 px-4 py-3 border-b">
+                    <h4 className="font-semibold flex items-center gap-2">
+                      <List className="h-4 w-4" />
+                      Variant Types
+                    </h4>
+                  </div>
+                  <ScrollArea className="h-[500px]">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Type Name</TableHead>
+                          <TableHead>Options</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {variantsVariantTypes.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={4} className="text-center py-8 text-slate-500">
+                              No variant types found. Click "Add Type" to create one.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          variantsVariantTypes.map((variantType) => (
+                            <TableRow
+                              key={variantType.id}
+                              className={selectedVariantTypeForOptions?.id === variantType.id ? 'bg-slate-100 cursor-pointer' : 'cursor-pointer'}
+                              onClick={() => setSelectedVariantTypeForOptions(variantType)}
+                            >
+                              <TableCell className="font-medium">
+                                {variantType.name}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline">{variantType.options.length}</Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={variantType.isActive ? 'default' : 'secondary'}>
+                                  {variantType.isActive ? 'Active' : 'Inactive'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => handleEditVariantType(variantType)}
+                                  >
+                                    <Pencil className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-red-600 hover:text-red-700"
+                                    onClick={() => handleDeleteVariantType(variantType.id)}
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
+                </div>
+
+                {/* Right Column: Variant Options Panel */}
+                <div className="border rounded-lg overflow-hidden">
+                  {selectedVariantTypeForOptions ? (
+                    <>
+                      <div className="bg-slate-50 px-4 py-3 border-b flex items-center justify-between">
+                        <div>
+                          <h4 className="font-semibold">{selectedVariantTypeForOptions.name}</h4>
+                          <p className="text-sm text-slate-500">
+                            {selectedVariantTypeForOptions.description || 'No description'}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setSelectedVariantTypeForOptions(null)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="px-4 py-3 border-b">
+                        <Dialog open={variantOptionDialogOpen} onOpenChange={setVariantOptionDialogOpen}>
+                          <DialogTrigger asChild>
+                            <Button onClick={resetVariantOptionForm} size="sm">
+                              <Plus className="h-4 w-4 mr-1" />
+                              Add Option
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-[500px]">
+                            <form onSubmit={handleVariantOptionSubmit}>
+                              <DialogHeader>
+                                <DialogTitle>{editingVariantOption ? 'Edit Option' : 'Add Option'}</DialogTitle>
+                              </DialogHeader>
+                              <div className="space-y-4 py-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="optionName">Option Name *</Label>
+                                  <Input
+                                    id="optionName"
+                                    value={variantOptionFormData.name}
+                                    onChange={(e) => setVariantOptionFormData({ ...variantOptionFormData, name: e.target.value })}
+                                    placeholder="e.g., Small, Medium, Large"
+                                    required
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="optionDescription">Description</Label>
+                                  <Input
+                                    id="optionDescription"
+                                    value={variantOptionFormData.description}
+                                    onChange={(e) => setVariantOptionFormData({ ...variantOptionFormData, description: e.target.value })}
+                                    placeholder="Optional description"
+                                  />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div className="space-y-2">
+                                    <Label htmlFor="optionSortOrder">Sort Order</Label>
+                                    <Input
+                                      id="optionSortOrder"
+                                      type="number"
+                                      min="0"
+                                      value={variantOptionFormData.sortOrder}
+                                      onChange={(e) => setVariantOptionFormData({ ...variantOptionFormData, sortOrder: e.target.value })}
+                                      placeholder="0"
+                                      required
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label htmlFor="optionStatus">Status</Label>
+                                    <Select
+                                      value={variantOptionFormData.isActive.toString()}
+                                      onValueChange={(value) => setVariantOptionFormData({ ...variantOptionFormData, isActive: value === 'true' })}
+                                    >
+                                      <SelectTrigger id="optionStatus">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="true">Active</SelectItem>
+                                        <SelectItem value="false">Inactive</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                              </div>
+                              <DialogFooter>
+                                <Button type="button" variant="outline" onClick={() => setVariantOptionDialogOpen(false)}>
+                                  Cancel
+                                </Button>
+                                <Button type="submit" disabled={loading}>
+                                  {loading ? 'Saving...' : editingVariantOption ? 'Update' : 'Add'} Option
+                                </Button>
+                              </DialogFooter>
+                            </form>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
+                      <ScrollArea className="h-[400px]">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Option Name</TableHead>
+                              <TableHead>Sort Order</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {selectedVariantTypeForOptions.options.length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={4} className="text-center py-8 text-slate-500">
+                                  No options found. Click "Add Option" to create one.
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              selectedVariantTypeForOptions.options
+                                .sort((a, b) => a.sortOrder - b.sortOrder)
+                                .map((option) => (
+                                  <TableRow key={option.id}>
+                                    <TableCell className="font-medium">
+                                      {option.name}
+                                      {option.description && (
+                                        <div className="text-xs text-slate-500">{option.description}</div>
+                                      )}
+                                    </TableCell>
+                                    <TableCell>{option.sortOrder}</TableCell>
+                                    <TableCell>
+                                      <Badge variant={option.isActive ? 'default' : 'secondary'}>
+                                        {option.isActive ? 'Active' : 'Inactive'}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      <div className="flex justify-end gap-2">
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8"
+                                          onClick={() => handleEditVariantOption(option)}
+                                        >
+                                          <Pencil className="h-3 w-3" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8 text-red-600 hover:text-red-700"
+                                          onClick={() => handleDeleteVariantOption(option.id)}
+                                        >
+                                          <Trash2 className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                ))
+                            )}
+                          </TableBody>
+                        </Table>
+                      </ScrollArea>
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-[600px] text-slate-500">
+                      <List className="h-12 w-12 mb-4 text-slate-300" />
+                      <p className="text-lg">Select a variant type to view and manage options</p>
+                      <p className="text-sm mt-2">Click on a variant type from the list on the left</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </TabsContent>            {/* Categories Tab */}
+            <TabsContent value="categories" className="space-y-4 mt-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-semibold">Menu Categories</h3>
+                  <p className="text-sm text-slate-500">
+                    Categories organize menu items and can have default variant types
+                  </p>
+                </div>
+                <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button onClick={resetCategoryForm}>
+                      <Folder className="h-4 w-4 mr-2" />
+                      Add Category
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[500px]">
+                    <form onSubmit={handleCategorySubmit}>
+                      <DialogHeader>
+                        <DialogTitle>{editingCategory ? 'Edit Category' : 'Add Category'}</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="catName">Category Name *</Label>
+                          <Input
+                            id="catName"
+                            value={categoryFormData.name}
+                            onChange={(e) => setCategoryFormData({ ...categoryFormData, name: e.target.value })}
+                            placeholder="e.g., Coffee"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="catDescription">Description</Label>
+                          <Input
+                            id="catDescription"
+                            value={categoryFormData.description}
+                            onChange={(e) => setCategoryFormData({ ...categoryFormData, description: e.target.value })}
+                            placeholder="Optional description"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="catSortOrder">Sort Order</Label>
+                            <Input
+                              id="catSortOrder"
+                              type="number"
+                              min="0"
+                              value={categoryFormData.sortOrder}
+                              onChange={(e) => setCategoryFormData({ ...categoryFormData, sortOrder: e.target.value })}
+                              placeholder="0"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="catActive">Status</Label>
+                            <Select
+                              value={categoryFormData.isActive.toString()}
+                              onValueChange={(value) => setCategoryFormData({ ...categoryFormData, isActive: value === 'true' })}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="true">Active</SelectItem>
+                                <SelectItem value="false">Inactive</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="catDefaultVariant">Default Variant Type</Label>
+                          <Select
+                            value={categoryFormData.defaultVariantTypeId}
+                            onValueChange={setCategoryFormData}
+                          >
+                            <SelectTrigger id="catDefaultVariant">
+                              <SelectValue placeholder="Optional: Select default variant type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {variantTypes.map((vt) => (
+                                <SelectItem key={vt.id} value={vt.id}>
+                                  {vt.name} {vt.description && `(${vt.description})`}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-slate-500">
+                            Items in this category will automatically use this variant type
+                          </p>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setCategoryDialogOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button type="submit" disabled={loading}>
+                          {loading ? 'Saving...' : editingCategory ? 'Update' : 'Add'} Category
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {categories.map((category) => (
+                  <Card key={category.id} className="border-slate-200">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-2">
+                          <Folder className="h-5 w-5 text-emerald-600" />
+                          <CardTitle className="text-base">{category.name}</CardTitle>
+                        </div>
+                        <Badge variant={category.isActive ? 'default' : 'secondary'}>
+                          {category.isActive ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </div>
+                      {category.description && (
+                        <CardDescription className="text-xs">{category.description}</CardDescription>
+                      )}
+                      {category.defaultVariantTypeId && (
+                        <Badge variant="outline" className="mt-2 text-xs">
+                          <Layers className="h-3 w-3 mr-1" />
+                          Default: {variantTypes.find(vt => vt.id === category.defaultVariantTypeId)?.name}
+                        </Badge>
+                      )}
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-500">
+                          <Package className="inline h-3 w-3 mr-1" />
+                          {category._count?.menuItems || 0} items
+                        </span>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleEditCategory(category)}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-red-600 hover:text-red-700"
+                            onClick={() => {
+                              if (confirm('Are you sure you want to delete this category?')) {
+                                handleDeleteCategory(category.id);
+                              }
+                            }}
+                            disabled={(category._count?.menuItems || 0) > 0}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </TabsContent>
 
             {/* Variants Tab */}
             <TabsContent value="variants" className="space-y-6 mt-4">
