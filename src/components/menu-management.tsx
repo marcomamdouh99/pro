@@ -1179,6 +1179,79 @@ export default function MenuManagement() {
             {/* Categories Tab */}
             <TabsContent value="categories" className="space-y-4 mt-4">
               <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-semibold">Categories</h3>
+                  <p className="text-sm text-slate-500">Organize menu items by category</p>
+                </div>
+                <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button onClick={resetCategoryForm}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Category
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[500px]">
+                    <form onSubmit={handleCategorySubmit}>
+                      <DialogHeader>
+                        <DialogTitle>{editingCategory ? 'Edit Category' : 'Add Category'}</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="categoryName">Category Name *</Label>
+                          <Input
+                            id="categoryName"
+                            value={categoryFormData.name}
+                            onChange={(e) => setCategoryFormData({ ...categoryFormData, name: e.target.value })}
+                            placeholder="e.g., Hot Drinks"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="categoryDescription">Description</Label>
+                          <Input
+                            id="categoryDescription"
+                            value={categoryFormData.description}
+                            onChange={(e) => setCategoryFormData({ ...categoryFormData, description: e.target.value })}
+                            placeholder="Optional description"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="sortOrder">Sort Order</Label>
+                            <Input
+                              id="sortOrder"
+                              type="number"
+                              min="0"
+                              value={categoryFormData.sortOrder}
+                              onChange={(e) => setCategoryFormData({ ...categoryFormData, sortOrder: e.target.value })}
+                              placeholder="0"
+                              required
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="active">Status</Label>
+                            <Select
+                              value={categoryFormData.isActive.toString()}
+                              onValueChange={(value) => setCategoryFormData({ ...categoryFormData, isActive: value === 'true' })}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="true">Active</SelectItem>
+                                <SelectItem value="false">Inactive</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="defaultVariantTypeId">Default Variant Type</Label>
+                          <Select
+                            value={categoryFormData.defaultVariantTypeId}
+                            onValueChange={(value) => setCategoryFormData({ ...categoryFormData, defaultVariantTypeId: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select variant type" />
                             </SelectTrigger>
                             <SelectContent>
                               {variantTypes.map((vt) => (
