@@ -18,39 +18,8 @@ async function safeInventoryDeduct(
 ) {
   const quantityToDeductAbs = Math.abs(quantityToDeduct);
 
-  // Try atomic update - only update if current stock >= required quantity
-  const result = await tx.$executeRaw`
-    UPDATE "BranchInventory"
-    SET "currentStock" = "currentStock" - ${quantityToDeductAbs},
-        "lastModifiedAt" = datetime('now')
-    WHERE id = (
-      SELECT id FROM "BranchInventory"
-      WHERE branchId = ${branchId} AND ingredientId = ${ingredientId} AND currentStock >= ${quantityToDeductAbs}
-      LIMIT 1
-    )
-    RETURNING id, currentStock
-  `;
-
-  // If no rows were affected, inventory is insufficient or doesn't exist
-  if (!result || result.count === 0) {
-    // Check if inventory exists
-    const existing = await tx.branchInventory.findUnique({
-      where: {
-        branchId_ingredientId: {
-          branchId,
-          ingredientId,
-        },
-      },
-    });
-
-    const currentStock = existing?.currentStock || 0;
-    throw new Error(
-      `Insufficient inventory for ${ingredientName}. Current stock: ${currentStock}, Required: ${quantityToDeductAbs}`
-    );
-  }
-
-  // Get updated stock record
-  const updatedInventory = await tx.branchInventory.findUnique({
+  // Check current stock first
+  const inventory = await tx.branchInventory.findUnique({
     where: {
       branchId_ingredientId: {
         branchId,
@@ -59,8 +28,30 @@ async function safeInventoryDeduct(
     },
   });
 
-  const stockBefore = updatedInventory!.currentStock + quantityToDeductAbs;
-  const stockAfter = updatedInventory!.currentStock;
+  const currentStock = inventory?.currentStock || 0;
+
+  if (currentStock < quantityToDeductAbs) {
+    throw new Error(
+      `Insufficient inventory for ${ingredientName}. Current stock: ${currentStock}, Required: ${quantityToDeductAbs}`
+    );
+  }
+
+  // Update inventory
+  const stockBefore = currentStock;
+  const stockAfter = currentStock - quantityToDeductAbs;
+
+  await tx.branchInventory.update({
+    where: {
+      branchId_ingredientId: {
+        branchId,
+        ingredientId,
+      },
+    },
+    data: {
+      currentStock: stockAfter,
+      lastModifiedAt: new Date(),
+    },
+  });
 
   // Create inventory transaction record
   await tx.inventoryTransaction.create({

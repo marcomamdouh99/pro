@@ -32,6 +32,12 @@ model User {
   auditLogs       AuditLog[]
   modifiedInventories BranchInventory[]  @relation("InventoryModifier")
   shifts          Shift[]
+  purchaseOrdersApproved PurchaseOrder[] @relation("PurchaseOrderApprover")
+  purchaseOrdersCreated   PurchaseOrder[] @relation("PurchaseOrderCreator")
+  transfersRequested     InventoryTransfer[] @relation("TransferRequester")
+  transfersApproved      InventoryTransfer[] @relation("TransferApprover")
+  transfersCompleted     InventoryTransfer[] @relation("TransferCompleter")
+  wasteLogs       WasteLog[] @relation("WasteRecorder")
 
   @@index([username])
   @@index([branchId])
@@ -74,6 +80,11 @@ model Branch {
   shifts            Shift[]
   costs             BranchCost[]
   couriers          Courier[]
+  purchaseOrders    PurchaseOrder[]
+  transfersAsSource InventoryTransfer[] @relation("SourceBranch")
+  transfersAsTarget InventoryTransfer[] @relation("TargetBranch")
+  wasteLogs         WasteLog[]
+  notifications     Notification[]
 
   @@index([licenseKey])
   @@index([isActive])
@@ -170,6 +181,7 @@ model Ingredient {
   unit             String            // 'kg', 'L', 'unit', 'g', 'ml'
   costPerUnit      Float
   reorderThreshold Float
+  alertThreshold   Float             @default(0) // Custom low stock alert threshold per ingredient
   version          Int               @default(1)
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
@@ -177,6 +189,9 @@ model Ingredient {
   recipes         Recipe[]
   branchInventory BranchInventory[]
   inventoryTxns   InventoryTransaction[]
+  purchaseOrderItems PurchaseOrderItem[]
+  transferItems   InventoryTransferItem[]
+  wasteLogs       WasteLog[]
 
   @@index([name])
   @@index([version])
@@ -247,23 +262,28 @@ model MenuItemVariant {
 // ============================================
 
 model BranchInventory {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   branchId        String
   ingredientId    String
-  currentStock    Float    @default(0)
+  currentStock    Float     @default(0)
+  reservedStock   Float     @default(0) // Stock reserved for pending orders
+  expiryDate      DateTime? // For perishable items
   lastRestockAt   DateTime?
-  lastModifiedAt  DateTime @default(now())
+  lastModifiedAt  DateTime  @default(now())
   lastModifiedBy  String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  branch     Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
-  modifier   User?       @relation("InventoryModifier", fields: [lastModifiedBy], references: [id])
+  branch     Branch                 @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  ingredient Ingredient             @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  modifier   User?                   @relation("InventoryModifier", fields: [lastModifiedBy], references: [id])
+  transferItemsAsSource InventoryTransferItem[] @relation("SourceInventory")
+  transferItemsAsTarget InventoryTransferItem[] @relation("TargetInventory")
 
   @@unique([branchId, ingredientId])
   @@index([branchId])
   @@index([ingredientId])
+  @@index([expiryDate])
 }
 
 model InventoryTransaction {
@@ -569,16 +589,22 @@ model Customer {
   email      String?
   notes      String?
   branchId   String?
+  loyaltyPoints Int @default(0)
+  tier       String  @default("BRONZE") // BRONZE, SILVER, GOLD, PLATINUM
+  totalSpent Float  @default(0)
+  orderCount Int    @default(0)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  branch   Branch?          @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  addresses CustomerAddress[]
-  orders   Order[]
+  branch              Branch?             @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  addresses           CustomerAddress[]
+  orders              Order[]
+  loyaltyTransactions LoyaltyTransaction[]
 
   @@index([phone])
   @@index([branchId])
   @@index([createdAt])
+  @@index([loyaltyPoints])
 }
 
 model CustomerAddress {
@@ -601,4 +627,239 @@ model CustomerAddress {
   @@index([customerId])
   @@index([deliveryAreaId])
   @@index([createdAt])
+}
+
+// ============================================
+// SUPPLIER MANAGEMENT
+// ============================================
+
+model Supplier {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  contactPerson String?
+  email       String?
+  phone       String
+  address     String?
+  isActive    Boolean  @default(true)
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  purchaseOrders PurchaseOrder[]
+
+  @@index([isActive])
+  @@index([name])
+}
+
+model PurchaseOrder {
+  id              String              @id @default(cuid())
+  supplierId      String
+  branchId        String
+  orderNumber     String              @unique
+  status          PurchaseOrderStatus @default(PENDING)
+  totalAmount     Float              @default(0)
+  orderedAt       DateTime            @default(now())
+  expectedAt      DateTime?
+  receivedAt      DateTime?
+  notes           String?
+  approvedBy      String?
+  approvedAt      DateTime?
+  createdBy       String
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  supplier    Supplier           @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  branch      Branch             @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  items       PurchaseOrderItem[]
+  approver    User?              @relation("PurchaseOrderApprover", fields: [approvedBy], references: [id])
+  creator     User               @relation("PurchaseOrderCreator", fields: [createdBy], references: [id])
+
+  @@index([supplierId])
+  @@index([branchId])
+  @@index([status])
+  @@index([orderedAt])
+}
+
+model PurchaseOrderItem {
+  id              String   @id @default(cuid())
+  purchaseOrderId String
+  ingredientId    String
+  quantity        Float
+  unit            String
+  unitPrice       Float
+  receivedQty     Float   @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  ingredient    Ingredient    @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseOrderId])
+  @@index([ingredientId])
+}
+
+enum PurchaseOrderStatus {
+  PENDING    // Awaiting approval
+  APPROVED   // Approved, awaiting delivery
+  RECEIVED   // Fully received
+  PARTIAL    // Partially received
+  CANCELLED  // Cancelled
+}
+
+// ============================================
+// INVENTORY TRANSFERS
+// ============================================
+
+model InventoryTransfer {
+  id              String               @id @default(cuid())
+  transferNumber  String               @unique
+  sourceBranchId  String
+  targetBranchId  String
+  status          TransferStatus       @default(PENDING)
+  requestedAt     DateTime             @default(now())
+  completedAt     DateTime?
+  notes           String?
+  requestedBy     String
+  approvedBy      String?
+  approvedAt      DateTime?
+  completedBy     String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  sourceBranch Branch               @relation("SourceBranch", fields: [sourceBranchId], references: [id], onDelete: Cascade)
+  targetBranch Branch               @relation("TargetBranch", fields: [targetBranchId], references: [id], onDelete: Cascade)
+  items        InventoryTransferItem[]
+  requester    User                 @relation("TransferRequester", fields: [requestedBy], references: [id])
+  approver     User?                @relation("TransferApprover", fields: [approvedBy], references: [id])
+  completer    User?                @relation("TransferCompleter", fields: [completedBy], references: [id])
+
+  @@index([sourceBranchId])
+  @@index([targetBranchId])
+  @@index([status])
+  @@index([requestedAt])
+}
+
+model InventoryTransferItem {
+  id                String   @id @default(cuid())
+  transferId        String
+  ingredientId      String
+  sourceInventoryId String
+  targetInventoryId String
+  quantity          Float
+  unit              String
+  createdAt         DateTime @default(now())
+
+  transfer       InventoryTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  ingredient     Ingredient         @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  sourceInventory BranchInventory    @relation("SourceInventory", fields: [sourceInventoryId], references: [id], onDelete: Cascade)
+  targetInventory BranchInventory    @relation("TargetInventory", fields: [targetInventoryId], references: [id], onDelete: Cascade)
+
+  @@index([transferId])
+  @@index([ingredientId])
+}
+
+enum TransferStatus {
+  PENDING    // Awaiting approval
+  APPROVED   // Approved, awaiting transfer
+  IN_TRANSIT // Being transferred
+  COMPLETED  // Successfully transferred
+  CANCELLED  // Cancelled
+}
+
+// ============================================
+// WASTE & LOSS TRACKING
+// ============================================
+
+model WasteLog {
+  id             String     @id @default(cuid())
+  branchId       String
+  ingredientId   String
+  quantity       Float
+  unit           String
+  reason         WasteReason
+  lossValue      Float
+  notes          String?
+  recordedBy     String
+  createdAt      DateTime   @default(now())
+
+  branch     Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  recorder   User       @relation("WasteRecorder", fields: [recordedBy], references: [id])
+
+  @@index([branchId])
+  @@index([ingredientId])
+  @@index([reason])
+  @@index([createdAt])
+}
+
+enum WasteReason {
+  EXPIRED
+  SPOILED
+  DAMAGED
+  PREPARATION
+  MISTAKE
+  THEFT
+  OTHER
+}
+
+// ============================================
+// CUSTOMER LOYALTY PROGRAM
+// ============================================
+
+model LoyaltyTransaction {
+  id          String              @id @default(cuid())
+  customerId  String
+  points      Int                 // Positive for earned, negative for redeemed
+  type        LoyaltyTransactionType
+  orderId     String?
+  amount      Float?              // Order amount for earning points
+  notes       String?
+  createdAt   DateTime            @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@index([createdAt])
+}
+
+enum LoyaltyTransactionType {
+  EARNED     // Points earned from purchase
+  REDEEMED   // Points redeemed for discount
+  ADJUSTMENT // Manual adjustment by admin
+  BONUS      // Bonus points from promotion
+}
+
+// ============================================
+// NOTIFICATIONS
+// ============================================
+
+model Notification {
+  id          String             @id @default(cuid())
+  branchId    String
+  type        NotificationType
+  title       String
+  message     String
+  isRead      Boolean            @default(false)
+  priority    String             @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
+  entityId    String?            // Related entity ID (e.g., ingredientId)
+  entityType  String?            // Related entity type
+  createdAt   DateTime           @default(now())
+
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@index([branchId])
+  @@index([type])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+enum NotificationType {
+  LOW_STOCK
+  EXPIRY_WARNING
+  EXPIRED
+  TRANSFER_REQUEST
+  PURCHASE_ORDER
+  WASTE_ALERT
+  LOYALTY_MILESTONE
+  SYSTEM
 }

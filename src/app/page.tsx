@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ShoppingCart, LayoutDashboard, Utensils, Package, Store, BarChart3, Settings, Users, LogOut, Lock, Globe, Coffee, Clock, TrendingUp, MapPin, UserRound, DollarSign } from 'lucide-react';
+import { ShoppingCart, LayoutDashboard, Utensils, Package, Store, BarChart3, Settings, Users, LogOut, Lock, Globe, Coffee, Clock, TrendingUp, MapPin, UserRound, DollarSign, AlertTriangle, ArrowRight, Trash2, Gift } from 'lucide-react';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { useI18n, Language } from '@/lib/i18n-context';
 import MenuManagement from '@/components/menu-management';
@@ -21,6 +21,10 @@ import AdvancedAnalytics from '@/components/advanced-analytics';
 import DeliveryManagement from '@/components/delivery-management';
 import CustomerManagement from '@/components/customer-management';
 import CostManagement from '@/components/cost-management';
+import InventoryAlerts from '@/components/inventory-alerts';
+import InventoryTransfers from '@/components/inventory-transfers';
+import WasteTracking from '@/components/waste-tracking';
+import LoyaltyProgram from '@/components/loyalty-program';
 
 export default function POSDashboard() {
   const router = useRouter();
@@ -138,6 +142,7 @@ export default function POSDashboard() {
   const canAccessDelivery = user.role === 'ADMIN' || user.role === 'BRANCH_MANAGER';
   const canAccessCustomers = user.role === 'ADMIN' || user.role === 'BRANCH_MANAGER';
   const canAccessCosts = user.role === 'ADMIN' || user.role === 'BRANCH_MANAGER';
+  const canAccessTransfers = user.role === 'ADMIN' || user.role === 'BRANCH_MANAGER';
 
   const handleLogout = () => {
     logout();
@@ -219,7 +224,7 @@ export default function POSDashboard() {
       {/* Main Content */}
       <main className="flex-1 container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-9 lg:w-auto lg:inline-grid bg-white/60 backdrop-blur-md rounded-xl shadow-xl border border-slate-200/200 p-1">
+          <TabsList className="flex flex-wrap w-full bg-white/60 backdrop-blur-md rounded-xl shadow-xl border border-slate-200/200 p-1">
             <TabsTrigger value="pos" className="data-[state=active]:bg-gradient-to-r from-emerald-600 to-emerald-700 text-emerald-700">
               <ShoppingCart className="h-4 w-4 mr-2" />
               {t('dashboard.pos')}
@@ -247,6 +252,39 @@ export default function POSDashboard() {
             >
               <Store className="h-4 w-4 mr-2" />
               {t('dashboard.ingredients')}
+            </TabsTrigger>
+            <TabsTrigger
+              value="inventory-alerts"
+              className="data-[state=active]:bg-gradient-to-r from-emerald-600 to-emerald-700 text-emerald-700 hover:bg-emerald-50"
+              disabled={!canAccessInventory}
+            >
+              <AlertTriangle className="h-4 w-4 mr-2" />
+              Alerts
+            </TabsTrigger>
+
+            <TabsTrigger
+              value="transfers"
+              className="data-[state=active]:bg-white text-emerald-700 hover:bg-emerald-50"
+              disabled={!canAccessTransfers}
+            >
+              <ArrowRight className="h-4 w-4 mr-2" />
+              Transfers
+            </TabsTrigger>
+            <TabsTrigger
+              value="waste"
+              className="data-[state=active]:bg-white text-emerald-700 hover:bg-emerald-50"
+              disabled={!canAccessInventory}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Waste
+            </TabsTrigger>
+            <TabsTrigger
+              value="loyalty"
+              className="data-[state=active]:bg-gradient-to-r from-emerald-600 to-emerald-700 text-emerald-700 hover:bg-emerald-50"
+              disabled={!canAccessCustomers}
+            >
+              <Gift className="h-4 w-4 mr-2" />
+              Loyalty
             </TabsTrigger>
             <TabsTrigger
               value="branches"
@@ -342,6 +380,40 @@ export default function POSDashboard() {
             <TabsContent value="ingredients" className="space-y-4">
               {canAccessInventory ? (
                 <IngredientManagement />
+              ) : (
+                <AccessDenied user={user} />
+              )}
+            </TabsContent>
+
+            <TabsContent value="inventory-alerts" className="space-y-4">
+              {canAccessInventory ? (
+                <InventoryAlerts />
+              ) : (
+                <AccessDenied user={user} />
+              )}
+            </TabsContent>
+
+
+
+            <TabsContent value="transfers" className="space-y-4">
+              {canAccessTransfers ? (
+                <InventoryTransfers />
+              ) : (
+                <AccessDenied user={user} />
+              )}
+            </TabsContent>
+
+            <TabsContent value="waste" className="space-y-4">
+              {canAccessInventory ? (
+                <WasteTracking />
+              ) : (
+                <AccessDenied user={user} />
+              )}
+            </TabsContent>
+
+            <TabsContent value="loyalty" className="space-y-4">
+              {canAccessCustomers ? (
+                <LoyaltyProgram />
               ) : (
                 <AccessDenied user={user} />
               )}

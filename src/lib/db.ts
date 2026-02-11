@@ -3,6 +3,15 @@
 
 import { PrismaClient } from '@prisma/client'
 
+// In development, don't use singleton to pick up schema changes
+if (process.env.NODE_ENV !== 'production') {
+  const globalForPrisma = globalThis as unknown as {
+    prisma: PrismaClient | undefined
+  }
+
+  globalForPrisma.prisma = undefined
+}
+
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
