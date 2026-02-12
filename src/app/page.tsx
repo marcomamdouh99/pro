@@ -512,7 +512,7 @@ export default function POSDashboard() {
       <footer className="bg-white/80 backdrop-blur-md border-t border-slate-200/200 mt-auto">
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between text-sm text-slate-500">
-            <p>© 2024 Emperor Coffee. All rights reserved.</p>
+            <p>© 2026 Emperor Coffee. All rights reserved.</p>
             <div className="text-slate-400">Premium POS System</div>
           </div>
         </div>
